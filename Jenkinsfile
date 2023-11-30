@@ -9,6 +9,17 @@ pipeline {
         DOCKERFILE_PATH = 'docker/php/Dockerfile'
     }
 
+        stages {
+        
+         stage('Logging into AWS ECR') {
+            steps {
+                script {
+                sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+                }
+                 
+            }
+        }
+
     stages {
         stage('Checkout') {
             steps {
@@ -37,11 +48,8 @@ pipeline {
         stage('Tag and Push Docker Image') {
             steps {
                 script {
-                    // Tag Docker image
-                    sh "docker tag $DOCKER_IMAGE_NAME $DOCKER_REGISTRY_URL/$DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG"
-                    
-                    // Push Docker image to registry
-                    sh "docker push $DOCKER_REGISTRY_URL/$DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG"
+                sh "docker tag ${IMAGE_REPO_NAME}:${IMAGE_TAG} ${REPOSITORY_URI}:$IMAGE_TAG"
+                sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_TAG}"
                 }
             }
         }
