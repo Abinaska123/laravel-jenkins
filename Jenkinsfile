@@ -38,8 +38,8 @@ pipeline {
         stage('Build') {
             steps {
                 script {
-                    // Build Laravel application
-                    sh "docker-compose build"
+                    // Build Laravel application    
+                    dockerImage = docker.build "${IMAGE_REPO_NAME}:${IMAGE_TAG}"
                 }
             }
         }
