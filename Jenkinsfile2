@@ -1,0 +1,63 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_COMPOSE_FILE = 'docker-compose.yml'
+        AWS_EC2_CREDENTIALS = 'aws-ec2-credentials-id'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build and Push Docker Images') {
+            steps {
+                script {
+                    // Assuming you have separate Dockerfiles for each service
+                    sh "docker-compose -f ${DOCKER_COMPOSE_FILE} build"
+                    sh "docker-compose -f ${DOCKER_COMPOSE_FILE} push"
+                }
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                script {
+                    sh "docker-compose -f ${DOCKER_COMPOSE_FILE} run --rm app php artisan test"
+                    // Add more commands if needed for other services
+                }
+            }
+        }
+
+        stage('Deploy to AWS EC2') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
+            steps {
+                script {
+                    // Transfer necessary files to EC2 instance
+                    withCredentials([sshUserPrivateKey(credentialsId: "${AWS_EC2_CREDENTIALS}", keyFileVariable: 'AWS_EC2_KEYFILE')]) {
+                        sh "scp -o StrictHostKeyChecking=yes -i ${AWS_EC2_KEYFILE} ${DOCKER_COMPOSE_FILE} ec2-user@your-ec2-instance:/path/to/deployment/directory"
+                        sh "scp -o StrictHostKeyChecking=yes -i ${AWS_EC2_KEYFILE} .env ec2-user@your-ec2-instance:/path/to/deployment/directory"
+                        // Add more files or configurations if needed
+                    }
+
+                    // Connect to the EC2 instance and deploy the application
+                    sshagent(credentials: ["${AWS_EC2_CREDENTIALS}"]) {
+                        sh "ssh -o StrictHostKeyChecking=yes -i ${AWS_EC2_KEYFILE} ec2-user@your-ec2-instance 'cd /path/to/deployment/directory && docker-compose pull && docker-compose up -d'"
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            // Cleanup steps, e.g., remove temporary files
+        }
+    }
+}
+

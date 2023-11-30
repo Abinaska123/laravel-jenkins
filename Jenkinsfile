@@ -1,66 +1,52 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_REGISTRY = 'your-docker-registry'
+        IMAGE_NAME = 'your-laravel-app'
+        DOCKER_COMPOSE_FILE = 'docker-compose.yml'
+        DOCKERFILE_PATH = 'docker/php/Dockerfile'
+    }
+
     stages {
-        stage("Verify tooling") {
+        stage('Checkout') {
             steps {
-                sh '''
-                    docker info
-                    docker version
-                    docker compose version
-                '''
+                checkout scm
             }
         }
 
-        stage("Verify SSH connection to server") {
-            steps {
-                sshagent(credentials: ['aws-ec2']) {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=yes ec2-user@13.53.127.40 whoami
-                    '''
-                }
-            }
-        }
-
-        stage("Clear all running docker containers") {
+        stage('Build') {
             steps {
                 script {
-                    try {
-                        sh 'docker rm -f $(docker ps -a -q)'
-                    } catch (Exception e) {
-                        echo 'No running container to clear up...'
-                    }
+                    // Build Laravel application
+                    sh 'docker-compose -f $DOCKER_COMPOSE_FILE build'
                 }
             }
         }
 
-        stage("Start Docker") {
+        stage('Push Docker Image') {
             steps {
-                sh 'make up'
-                sh 'docker compose ps'
-            }
-        }
-
-        stage("Run Composer Install") {
-            steps {
-                dir("path/to/your/project") {
-                    sh 'docker compose run --rm composer install'
+                script {
+                    // Push Docker image to registry
+                    sh "docker-compose -f $DOCKER_COMPOSE_FILE push"
                 }
             }
         }
 
-        stage("Populate .env file") {
+        stage('Deploy') {
             steps {
-                dir("path/to/your/project") {
-                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: '.env', targetLocation: "${WORKSPACE}")])
+                script {
+                    // Deploy your application using Docker Compose
+                    sh "docker-compose -f $DOCKER_COMPOSE_FILE up -d"
                 }
             }
         }
 
-        stage("Run Tests") {
+        stage('Run Tests') {
             steps {
-                dir("path/to/your/project") {
-                    sh 'docker compose run --rm artisan test'
+                script {
+                    // Run Laravel tests
+                    sh 'docker-compose -f $DOCKER_COMPOSE_FILE exec laravel-app php artisan test'
                 }
             }
         }
@@ -68,28 +54,10 @@ pipeline {
 
     post {
         success {
-            script {
-                dir("path/to/your/project") {
-                    sh 'rm -rf artifact.zip'
-                    sh 'zip -r artifact.zip . -x "*node_modules**"'
-                    withCredentials([sshUserPrivateKey(credentialsId: "aws-ec2", keyFileVariable: 'keyfile')]) {
-                        sh 'scp -v -o StrictHostKeyChecking=yes -i ${keyfile} /var/lib/jenkins/workspace/LaravelTest/artifact.zip ec2-user@13.53.127.40:/home/ec2-user/artifact'
-                    }
-                    sshagent(credentials: ['aws-ec2']) {
-                        sh 'ssh -o StrictHostKeyChecking=yes ec2-user@13.53.127.40 unzip -o /home/ec2-user/artifact/artifact.zip -d /var/www/html'
-                        try {
-                            sh 'ssh -o StrictHostKeyChecking=yes ec2-user@13.53.127.40 sudo chmod 777 /var/www/html/storage -R'
-                        } catch (Exception e) {
-                            echo 'Some file permissions could not be updated.'
-                        }
-                    }
-                }
-            }
+            echo 'Deployment successful!'
         }
-
-        always {
-            sh 'docker compose down --remove-orphans -v'
-            sh 'docker compose ps'
+        failure {
+            echo 'Deployment failed!'
         }
     }
 }
