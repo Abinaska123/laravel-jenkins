@@ -9,7 +9,7 @@ pipeline {
         DOCKER_IMAGE_TAG = "latest"
         DOCKER_COMPOSE_FILE = 'docker-compose.yml'
         DOCKERFILE_PATH = 'docker/php/Dockerfile'
-        DOCKER_IMAGE_NAMENGNIX = "docker-laravel-nginx"
+        //DOCKER_IMAGE_NAMENGNIX = "docker-laravel-nginx"
     }
 
     stages {
