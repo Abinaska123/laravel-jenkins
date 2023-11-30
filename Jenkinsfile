@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_REGISTRY_URL = 'your-docker-registry'
-        DOCKER_IMAGE_NAME = 'your-laravel-app'
+        DOCKER_REGISTRY_URL = '591481069844.dkr.ecr.eu-north-1.amazonaws.com'
+        DOCKER_IMAGE_NAME = 'prod-laravel-api'
         DOCKER_IMAGE_TAG = 'latest'
         DOCKER_COMPOSE_FILE = 'docker-compose.yml'
         DOCKERFILE_PATH = 'docker/php/Dockerfile'
