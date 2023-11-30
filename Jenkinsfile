@@ -29,7 +29,7 @@ pipeline {
             steps {
                 script {
                     // Build Laravel application
-                    sh "docker-compose -f $DOCKER_COMPOSE_FILE -f $DOCKERFILE_PATH build"
+                    sh "docker-compose build"
                 }
             }
         }
